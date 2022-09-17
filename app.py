@@ -1,33 +1,40 @@
 from collections import defaultdict
 
-from flask import Flask
+from flask import Flask, request
 from flask_restful import Resource, Api
-from db import db
 from sqlalchemy import extract
 
+from api_sistema_ponto.models import db_session
 from models import ModeloColaborador, ModeloPonto
 
 app = Flask(__name__)
 api = Api(app)
 
 
-class Colaborador:
-    def colaboradorToJson(self, colaborador):
-        json = {
-            'id': colaborador.id,
-            'nome': colaborador.nome,
-            'cpf': colaborador.cpf,
-            'email': colaborador.email,
-            'celular': colaborador.celular,
-            'empresa': colaborador.empresa,
-            'cargo': colaborador.cargo,
-            'endereco': colaborador.endereco,
-            'cep': colaborador.cep,
-            'ativo': colaborador.ativo,
-            # 'created_at': str(colaborador.created_at),
-            # 'last_modified_at': str(colaborador.last_modified_at)
-        }
-        return json
+class Colaborador(Resource):
+    def get(self, colaboradores):
+        colaborador = ModeloColaborador.query.filter_by(colaboradores=colaboradores).first()
+        try:
+            response = {
+                'id': colaborador.id,
+                'nome': colaborador.nome,
+                'cpf': colaborador.cpf,
+                'email': colaborador.email,
+                'celular': colaborador.celular,
+                'empresa': colaborador.empresa,
+                'cargo': colaborador.cargo,
+                'endereco': colaborador.endereco,
+                'cep': colaborador.cep,
+                'ativo': colaborador.ativo,
+                'created_at': str(colaborador.created_at),
+                'last_modified_at': str(colaborador.last_modified_at)
+            }
+        except AttributeError:
+            response = {
+                'status': 'error',
+                'message': 'Colaborador não encontrado'
+            }
+        return response
 
     def getAll(self):
         colaboradores = ModeloColaborador.query.filter_by()
@@ -55,9 +62,10 @@ class Colaborador:
             except Exception as err:
                 return {'status': 'fail', 'message': 'Não foi possivel completar a solicitação'}
             finally:
-                db.session.close()
+                db_session.close()
 
-    def save(self, data):
+    def post(self, data):
+        colaborador = request.json
         colaborador = ModeloColaborador.query.filter_by(cpf=data['cpf'], ativo=True).first()
 
         if not colaborador:
@@ -72,27 +80,30 @@ class Colaborador:
                 cep=data['cep'],
                 ativo=True
             )
-
-            db.session.add(colaborador)
-            try:
-                db.session.flush()
-                db.session.commit()
-                return {'status': 'success', 'message': 'Colaborador adicionado com sucesso', 'id': colaborador.id}, 200
-            except Exception as err:
-                db.session.rollback()
-                return {'status': 'fail', 'message': 'Não foi possível adicionar o colaborador no momento'}, 500
-            finally:
-                db.session.close()
-
+            colaborador.save()
+            response = {
+                'id': colaborador.id,
+                'nome': colaborador.nome,
+                'cpf': colaborador.cpf,
+                'email': colaborador.email,
+                'celular': colaborador.celular,
+                'empresa': colaborador.empresa,
+                'cargo': colaborador.cargo,
+                'endereco': colaborador.endereco,
+                'cep': colaborador.cep,
+                'ativo': colaborador.ativo,
+            }
+            return response
         else:
             return {'status': 'fail', 'message': 'Já existe um colaborador ativo com este CPF'}, 400
 
-    def update(self, id, data):
+    def update(self, id):
         if not id:
             return {'status': 'fail', 'message': 'O parâmetro id é obrigatório'}, 400
         else:
             try:
                 colaborador = ModeloColaborador.query.filter_by(id=id, ativo=True).first()
+                data = request.json
 
                 if not colaborador:
                     return {'status': 'fail', 'message': 'Não existe colaborador associado ao id recebido'}, 400
@@ -108,18 +119,31 @@ class Colaborador:
                     colaborador.ativo = data['ativo'] if 'ativo' in data else colaborador.ativo
 
                     try:
-                        db.session.commit()
-                        return {'status': 'success', 'message': 'Colaborador atualizado com sucesso'}, 200
+                        colaborador.save()
+                        response = {
+                            'id': colaborador.id,
+                            'nome': colaborador.nome,
+                            'cpf': colaborador.cpf,
+                            'email': colaborador.email,
+                            'celular': colaborador.celular,
+                            'empresa': colaborador.empresa,
+                            'cargo': colaborador.cargo,
+                            'endereco': colaborador.endereco,
+                            'cep': colaborador.cep,
+                            'ativo': colaborador.ativo,
+                        }
+                        return response
+
                     except Exception as err:
-                        db.session.rollback()
+                        db_session.rollback()
                         return {'status': 'fail', 'message': 'Não foi possível atualizar o colaborador no momento'}, 500
                     finally:
-                        db.session.close()
+                        db_session.close()
             except Exception as err:
                 return {'status': 'fail',
                         'message': 'Não foi possível completar a solicitação no momento, por favor tente novamente mais tarde.'}, 500
             finally:
-                db.session.close()
+                db_session.close()
 
     def delete(self, id):
         if not id:
@@ -127,24 +151,15 @@ class Colaborador:
         else:
             try:
                 colaborador = ModeloColaborador.query.filter_by(id=id, ativo=True).first()
+                mensagem = 'Colaborador {} excluido com sucesso'.format(colaborador)
+                colaborador.delete()
+                return {'status': 'sucesso', 'mensagem': mensagem}
 
-                if not colaborador:
-                    return {'status': 'fail', 'message': 'Não existe usuário associado ao id recebido'}, 400
-                else:
-                    colaborador.ativo = False
-                    try:
-                        db.session.commit()
-                        return {'status': 'success', 'message': 'O colaborador foi removido com sucesso.'}, 200
-                    except Exception as err:
-                        return {'status': 'fail',
-                                'message': 'Não foi possível completar a solicitação no momento, por favor tente novamente mais tarde.'}, 500
-                    finally:
-                        db.session.close()
             except Exception as err:
                 return {'status': 'fail',
                         'message': 'Não foi possível completar a solicitação no momento, por favor tente novamente mais tarde.'}, 500
             finally:
-                db.session.close()
+                db_session.close()
 
     def hard_delete(self, id):
         if not id:
@@ -156,21 +171,21 @@ class Colaborador:
                 if not colaborador:
                     return {'status': 'fail', 'message': 'Não existe usuário associado ao id recebido'}, 400
                 else:
-                    db.session.delete(colaborador)
+                    db_session.delete(colaborador)
                     try:
-                        db.session.commit()
+                        db_session.commit()
                         return {'status': 'success',
                                 'message': 'O colaborador foi removido permanente com sucesso.'}, 200
                     except Exception as err:
                         return {'status': 'fail',
                                 'message': 'Não foi possível completar a solicitação no momento, por favor tente novamente mais tarde.'}, 500
                     finally:
-                        db.session.close()
+                        db_session.close()
             except Exception as err:
                 return {'status': 'fail',
                         'message': 'Não foi possível completar a solicitação no momento, por favor tente novamente mais tarde.'}, 500
             finally:
-                db.session.close()
+                db_session.close()
 
 
 class Ponto:
@@ -178,8 +193,8 @@ class Ponto:
         json = {
             'id': ponto.id,
             'tipo_de_ponto': ponto.tipo_de_ponto,
-            # 'created_at': str(ponto.created_at),
-            # 'last_modified_at': str(ponto.last_modified_at)
+            'created_at': str(ponto.created_at),
+            'last_modified_at': str(ponto.last_modified_at)
         }
         return json
 
@@ -202,8 +217,8 @@ class Ponto:
 
             report = []
             for day in days:
-                ins = list(filter(lambda ponto: ponto.tipo_de_ponto == 'in', days[day]))
-                outs = list(filter(lambda ponto: ponto.tipo_de_ponto == 'out', days[day]))
+                ins = list(filter(lambda ponto: ModeloPonto.tipo_de_ponto == 'in', days[day]))
+                outs = list(filter(lambda ponto: ModeloPonto.tipo_de_ponto == 'out', days[day]))
                 days[day] = 0
                 if len(ins) > 0 and len(outs) > 0:
                     if ins[0].created_at < outs[-1].created_at:
@@ -248,10 +263,11 @@ class Ponto:
                     return {'status': 'fail', 'message': 'Não existe ponto associado a este id'}, 400
             except Exception as err:
                 return {'status': 'fail',
-                        'message': 'Não foi possível completar a solicitação no momento, por favor tente novamente mais tarde.',
+                        'message': 'Não foi possível completar a solicitação no momento, por favor tente novamente '
+                                   'mais tarde.',
                         'err': err}, 500
             finally:
-                db.session.close()
+                db_session.close()
 
     def save(self, data):
         ponto = ModeloPonto(
@@ -259,16 +275,16 @@ class Ponto:
             colaborador_id=data['colaborador_id']
         )
 
-        db.session.add(ponto)
+        db_session.add(ponto)
         try:
-            db.session.flush()
-            db.session.commit()
+            db_session.flush()
+            db_session.commit()
             return {'status': 'success', 'message': 'Ponto adicionado com sucesso', 'id': ponto.id}, 200
         except Exception as err:
-            db.session.rollback()
+            db_session.rollback()
             return {'status': 'fail', 'message': 'Não foi possível adicionar o ponto no momento'}, 500
         finally:
-            db.session.close()
+            db_session.close()
 
     def update(self, id, data):
         if not id:
@@ -287,18 +303,19 @@ class Ponto:
                         'last_modified_at'] if 'last_modified_at' in data else ponto.last_modified_at
 
                     try:
-                        db.session.commit()
+                        db_session.commit()
                         return {'status': 'success', 'message': 'Ponto atualizado com sucesso'}, 200
                     except Exception as err:
-                        db.session.rollback()
+                        db_session.rollback()
                         return {'status': 'fail', 'message': 'Não foi possível atualizar o ponto no momento'}, 500
                     finally:
-                        db.session.close()
+                        db_session.close()
             except Exception as err:
                 return {'status': 'fail',
-                        'message': 'Não foi possível completar a solicitação no momento, por favor tente novamente mais tarde.'}, 500
+                        'message': 'Não foi possível completar a solicitação no momento, por favor tente novamente '
+                                   'mais tarde.'}, 500
             finally:
-                db.session.close()
+                db_session.close()
 
     def delete(self, id):
         if not id:
@@ -310,24 +327,24 @@ class Ponto:
                 if not ponto:
                     return {'status': 'fail', 'message': 'Não existe ponto associado ao id recebido'}, 400
                 else:
-                    db.session.delete(ponto)
+                    db_session.delete(ponto)
                     try:
-                        db.session.commit()
+                        db_session.commit()
                         return {'status': 'success', 'message': 'O ponto foi removido com sucesso.'}, 200
                     except Exception as err:
                         return {'status': 'fail',
                                 'message': 'Não foi possível completar a solicitação no momento, por favor tente novamente mais tarde.'}, 500
                     finally:
-                        db.session.close()
+                        db_session.close()
             except Exception as err:
                 return {'status': 'fail',
                         'message': 'Não foi possível completar a solicitação no momento, por favor tente novamente mais tarde.'}, 500
             finally:
-                db.session.close()
+                db_session.close()
 
 
-api.add_resource(Colaborador, '/valorpresenteliquido/<int:valorpresenteliquido>/')
-api.add_resource(Ponto, '/listavalorpresenteliquido/')
+api.add_resource(Colaborador, '/colaborador/<int:id>/')
+api.add_resource(Ponto, '/colaborador/ponto/<int:colaborador_id>/')
 
 if __name__ == '__main__':
     app.run(debug=True)
