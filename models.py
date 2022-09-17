@@ -14,7 +14,7 @@ Base.query = db_session.query_property()
 
 class ModeloColaborador(Base):
     __tablename__ = 'colaborador'
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True)
     nome = Column(String(150), nullable=False)
     cpf = Column(String(12), nullable=False)
     email = Column(String(255), nullable=True)
@@ -26,10 +26,10 @@ class ModeloColaborador(Base):
     ativo = Column(String(3), default='SIM', nullable=False)
     created_at = datetime.utcnow()
     last_modified_at = datetime.utcnow()
-    pontos = relationship("Ponto")
+    # pontos = relationship("ponto")
 
     def __repr__(self):
-        return '<nome do colaborador {}>'.format(self.valor_presente_liquido)
+        return '<nome do colaborador {}>'.format(self.nome)
 
     def save(self):
         db_session.add(self)
@@ -47,7 +47,7 @@ class ModeloPonto(Base):
     created_at = datetime.utcnow()
     last_modified_at = datetime.utcnow()
     colaborador_id = Column(Integer, ForeignKey("colaborador.id"))
-    colaborador = relationship("Colaborador", back_populates="pontos")
+    # colaborador = relationship("colaborador", back_populates="pontos")
 
     def save(self):
         db_session.add(self)
