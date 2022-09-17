@@ -116,7 +116,7 @@ class ListaColaborador(Resource):
         dados = request.json
         retorno = []
         retorno.append(- dados['id'])
-        for i in range (0,int(dados['id'])):
+        for i in range(0, int(dados['id'])):
             retorno.append(dados['nome'])
         colaborador = ModeloColaborador(
             nome=dados['nome'],
@@ -146,8 +146,104 @@ class ListaColaborador(Resource):
         return response
 
 
+class Ponto(Resource):
+    def get(self, id):
+        ponto = ModeloPonto.query.filter_by(
+            id=id).first()
+        try:
+            response = {
+                'id': ponto.id,
+                'tipo_de_ponto': ponto.tipo_de_ponto,
+                'created_at': str(ponto.created_at),
+                'last_modified_at': str(ponto.last_modified_at),
+                'colaborador_id': ponto.colaborador_id,
+            }
+        except AttributeError:
+            response = {
+                'status': 'error',
+                'message': 'Ponto não encontrado'
+            }
+        return response
+
+    def put(self, id):
+        ponto = ModeloPonto.query.filter_by(
+            id=id).first()
+        dados = request.json
+
+        if 'id' in dados:
+            ponto.id = dados['id']
+
+        if 'tipo_de_ponto' in dados:
+            ponto.tipo_de_ponto = dados['tipo_de_ponto']
+
+        if 'created_at' in dados:
+            ponto.created_at = dados['created_at']
+
+        if 'last_modified_at' in dados:
+            ponto.last_modified_at = dados['last_modified_at']
+
+        if 'colaborador_id' in dados:
+            ponto.colaborador_id = dados['colaborador_id']
+
+        ponto.save()
+        response = {
+            'id': ponto.id,
+            'tipo_de_ponto': ponto.tipo_de_ponto,
+            'created_at': ponto.created_at,
+            'last_modified_at': ponto.last_modified_at,
+            'colaborador_id': ponto.colaborador_id,
+        }
+
+        return response
+
+    def delete(self, id):
+        ponto = ModeloPonto.query.filter_by(id=id).first()
+        mensagem = 'Colaborador {} excluido com sucesso'.format(ponto)
+        ponto.delete()
+        return {'status': 'sucesso', 'mensagem': mensagem}
+
+
+class ListaPonto(Resource):
+
+    def get(self):
+        ponto = ModeloPonto.query.all()
+        response = [{
+            'id': i.id,
+            'tipo_de_ponto': i.tipo_de_ponto,
+            'created_at': i.created_at,
+            'last_modified_at': i.last_modified_at,
+            'colaborador_id': i.colaborador_id,
+        } for i in ponto]
+        return response
+
+    def post(self):
+        dados = request.json
+        retorno = []
+        retorno.append(- dados['id'])
+        for i in range(0, int(dados['id'])):
+            retorno.append(dados['colaborador_id'])
+        ponto = ModeloPonto(
+            tipo_de_ponto=dados['tipo_de_ponto'],
+            created_at=dados['created_at'],
+            last_modified_at=dados['last_modified_at'],
+            colaborador_id=dados['colaborador_id'],
+        )
+
+        ponto.save()
+        response = {
+            'id': ponto.id,
+            'tipo_de_ponto': ponto.tipo_de_ponto,
+            'created_at': ponto.created_at,
+            'last_modified_at': ponto.last_modified_at,
+            'colaborador_id': ponto.colaborador_id,
+        }
+        return response
+
+
 api.add_resource(Colaborador, '/colaborador/<int:id>/')
 api.add_resource(ListaColaborador, '/listacolaborador/')
+api.add_resource(Ponto, '/ponto/<int:id>/')
+api.add_resource(ListaPonto, '/listaponto/')
 
 if __name__ == '__main__':
     app.run(debug=True)
