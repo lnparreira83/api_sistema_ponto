@@ -188,19 +188,20 @@ class Colaborador(Resource):
                 db_session.close()
 
 
-class Ponto:
-    def pontoToJson(self, ponto):
-        json = {
+class Ponto(Resource):
+    def get(self):
+        ponto = ModeloPonto.query.all()
+        response = {
             'id': ponto.id,
             'tipo_de_ponto': ponto.tipo_de_ponto,
             'created_at': str(ponto.created_at),
             'last_modified_at': str(ponto.last_modified_at)
         }
-        return json
+        return response
 
     def getAll(self):
         pontos = ModeloPonto.query.filter_by()
-        pontos = list(self.colaboradorToJson(ponto) for ponto in pontos);
+        pontos = list(self.get() for _ in pontos)
         return {'status': 'success', 'message': 'A lista de pontos foi consultada com sucesso', 'pontos': pontos}
 
     def report(self, colaborador_id, month):
@@ -269,29 +270,35 @@ class Ponto:
             finally:
                 db_session.close()
 
-    def save(self, data):
+    def save(self):
+        data = request.json
         ponto = ModeloPonto(
             tipo_de_ponto=data['tipo_de_ponto'],
             colaborador_id=data['colaborador_id']
         )
-
-        db_session.add(ponto)
         try:
-            db_session.flush()
-            db_session.commit()
-            return {'status': 'success', 'message': 'Ponto adicionado com sucesso', 'id': ponto.id}, 200
+            ponto.save()
+            response = {
+                'id': ponto.id,
+                'tipo_de_ponto': ponto.tipo_de_ponto,
+                'created_at': str(ponto.created_at),
+                'last_modified_at': str(ponto.last_modified_at)
+            }
+            return response
+
         except Exception as err:
             db_session.rollback()
             return {'status': 'fail', 'message': 'Não foi possível adicionar o ponto no momento'}, 500
         finally:
             db_session.close()
 
-    def update(self, id, data):
+    def update(self, id):
         if not id:
             return {'status': 'fail', 'message': 'O parâmetro id é obrigatório'}, 400
         else:
             try:
                 ponto = ModeloPonto.query.filter_by(id=id).first()
+                data = request.json
 
                 if not ponto:
                     return {'status': 'fail', 'message': 'Não existe ponto associado ao id recebido'}, 400
@@ -303,7 +310,7 @@ class Ponto:
                         'last_modified_at'] if 'last_modified_at' in data else ponto.last_modified_at
 
                     try:
-                        db_session.commit()
+                        ponto.save()
                         return {'status': 'success', 'message': 'Ponto atualizado com sucesso'}, 200
                     except Exception as err:
                         db_session.rollback()
@@ -327,9 +334,8 @@ class Ponto:
                 if not ponto:
                     return {'status': 'fail', 'message': 'Não existe ponto associado ao id recebido'}, 400
                 else:
-                    db_session.delete(ponto)
                     try:
-                        db_session.commit()
+                        ponto.delete()
                         return {'status': 'success', 'message': 'O ponto foi removido com sucesso.'}, 200
                     except Exception as err:
                         return {'status': 'fail',
@@ -343,7 +349,7 @@ class Ponto:
                 db_session.close()
 
 
-api.add_resource(Colaborador, '/colaborador/<int:id>/')
+api.add_resource(Colaborador, '/colaborador/<int:id>')
 api.add_resource(Ponto, '/colaborador/ponto/<int:colaborador_id>/')
 
 if __name__ == '__main__':
